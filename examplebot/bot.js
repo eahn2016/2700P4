@@ -1,41 +1,85 @@
-// Our Twitter library
 var Twit = require('twit');
 
-// We need to include our configuration file
 var T = new Twit(require('./config.js'));
 
-// This is the URL of a search for the latest tweets on the '#mediaarts' hashtag.
-var mediaArtsSearch = {q: "#mediaarts", count: 10, result_type: "recent"}; 
+//Search for user who @FabioBot2
+var selfSearch = {q: "to:FabioBot2", count: 100, result_type: "recent"};
 
-// This function finds the latest tweet with the #mediaarts hashtag, and retweets it.
-function retweetLatest() {
-	T.get('search/tweets', mediaArtsSearch, function (error, data) {
-	  // log out any errors and responses
+//Reply to user with "Knock knock"
+function tweetEvent() {
+
+	T.get('search/tweets', selfSearch, function(error, data) {
+
+		var tweet = data.statuses[0];
+		var reply_to = tweet.in_reply_to_screen_name;
+		var txt = tweet.text;
+		var id = tweet.id_str;
+
+		//Only respond to initial tweets that @FabioBot2
+		if (reply_to == 'FabioBot2' && txt != "@FabioBot2 Who\'s there?") {
+
+			//Replies Knock knock
+			var replyText = '@' + tweet.user.screen_name + ' Knock knock';
+			T.post('statuses/update', { status: replyText, in_reply_to_status_id: id}, tweeted);
+
+			function tweeted(err, reply) {
+				if (err) {
+				console.log(err.message);
+				} else {
+				console.log('Tweeted: ' + reply.text);
+				}
+			}
+		}
+	});
+}
+
+//Search for user who replies to @FabioBot2 with "Who's there?"
+var whosThereSearch = {q: "to:FabioBot2+Who\'s+There", count:100, result_type: "recent"};
+
+function whosThereEvent() {
+	T.get('search/tweets', whosThereSearch, function(error, data) {
+
+		var whosThere = data.statuses[0];
+		var reply_to = whosThere.in_reply_to_screen_name;
+		var txt = whosThere.text;
+		var id = whosThere.id_str;
+
+		//Replies only if a user replies to @FabioBot2 with "Who's there?"
+		if (reply_to == 'FabioBot2' && txt == "@FabioBot2 Who\'s there?") {
+
+			//Replies with joke here -- UPDATE
+			var replyText = '@' + whosThere.user.screen_name + ' Boo!';
+			T.post('statuses/update', { status: replyText, in_reply_to_status_id: id}, tweeted);
+
+			function tweeted(err, reply) {
+				if (err) {
+				console.log(err.message);
+				} else {
+				console.log('Tweeted: ' + reply.text);
+				}
+			}
+		}
+	})
+}
+
+function replyFirst() {
+	T.get('search/tweets', selfSearch, function (error, data) {
+
 	  console.log(error, data);
-	  // If our search request to the server had no errors...
+
 	  if (!error) {
-	  	// ...then we grab the ID of the tweet we want to retweet...
-		var retweetId = data.statuses[0].id_str;
-		// ...and then we tell Twitter we want to retweet it!
-		T.post('statuses/retweet/' + retweetId, { }, function (error, response) {
-			if (response) {
-				console.log('Success! Check your bot, it should have retweeted something.')
-			}
-			// If there was an error with our Twitter call, we print it out here.
-			if (error) {
-				console.log('There was an error with Twitter:', error);
-			}
-		})
+	  	//initial check for @FabioBot2
+		tweetEvent();
+		//whos there check for @FabioBot2 and "Who's there?"
+		whosThereEvent();
+		console.log('SUCCESS');
 	  }
-	  // However, if our original search request had an error, we want to print it out here.
 	  else {
 	  	console.log('There was an error with your hashtag search:', error);
 	  }
 	});
 }
 
-// Try to retweet something as soon as we run the program...
-retweetLatest();
-// ...and then every hour after that. Time here is in milliseconds, so
-// 1000 ms = 1 second, 1 sec * 60 = 1 min, 1 min * 60 = 1 hour --> 1000 * 60 * 60
-setInterval(retweetLatest, 1000 * 60 * 60);
+replyFirst();
+
+setInterval(replyFirst, 1000 * 60 * 60);
